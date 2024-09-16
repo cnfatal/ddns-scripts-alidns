@@ -137,6 +137,42 @@ update_record() {
 	fi
 }
 
+retry_update_record() {
+	DOAMIN_NAME=$1
+	RECORD_NAME=$2
+	RECORD_TYPE=$3
+	VALUE=$4
+
+	# max retry
+	MAX_RETRY=5
+
+	# current retry count
+	retry_count=0
+
+	# loop execute command, retry if failed
+	while true; do
+		# execute command
+		command_result=$(update_record $DOAMIN_NAME $RECORD_NAME $RECORD_TYPE $VALUE)
+
+		# check return value, break if succeed
+		if [ $? -eq 0 ]; then
+			write_log 7 "update_record succeeded!"
+			break
+		fi
+
+		# failed, check reach max retry count
+		if [ $retry_count -ge $MAX_RETRY ]; then
+			write_log 7 "update_record failed after $MAX_RETRY attempts."
+			return
+		fi
+
+		# failed, retry_count++
+		write_log 7 "update_record failed, retrying in 2 seconds..."
+		retry_count=$((retry_count + 1))
+		sleep 2
+	done
+}
+
 main() {
 	local record_type
 
@@ -159,7 +195,7 @@ main() {
 	[ -z "$subdomain" ] && subdomain="@"
 	write_log 7 "Updating $subdomain.$maindomain"
 
-	update_record $maindomain $subdomain $record_type $__IP
+	retry_update_record $maindomain $subdomain $record_type $__IP
 }
 
 main
